@@ -1,0 +1,50 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# Next.js build output
+/.next/
+/out/
+/build
+next-env.d.ts
+
+# Production
+/dist
+
+# Environment variables — NEVER commit these.
+# .env.local holds your Supabase keys and ANTHROPIC_API_KEY.
+# .env.example is the safe, committed template (no real values).
+.env
+.env*.local
+.env.production
+
+# Supabase local dev
+/supabase/.branches
+/supabase/.temp
+
+# Testing
+/coverage
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# macOS — the thing that gave us "gp-guardian 2" in the first place
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Editors
+/.vscode
+/.idea
+*.swp
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
