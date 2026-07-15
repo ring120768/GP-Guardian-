@@ -5,6 +5,7 @@
 
 import type { DocumentRow } from "@/types/database";
 import { getDocumentHealth, HEALTH_STYLES } from "@/lib/documents/health";
+import { ExtractButton } from "@/components/ExtractButton";
 
 export function DocumentCard({ doc }: { doc: DocumentRow }) {
   const health = getDocumentHealth(doc);
@@ -25,13 +26,17 @@ export function DocumentCard({ doc }: { doc: DocumentRow }) {
         </p>
       </div>
 
-      <span
-        className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${
-          HEALTH_STYLES[health.tone]
-        }`}
-      >
-        {health.label}
-      </span>
+      <div className="flex shrink-0 items-center gap-3">
+        {/* 'Read invoice' / retry — only renders while the machine hasn't read it yet. */}
+        <ExtractButton documentId={doc.id} processingStatus={doc.processing_status} />
+        <span
+          className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
+            HEALTH_STYLES[health.tone]
+          }`}
+        >
+          {health.label}
+        </span>
+      </div>
     </div>
   );
 }
