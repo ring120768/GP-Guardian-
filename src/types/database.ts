@@ -6,9 +6,19 @@ export type Unit = "g" | "ml" | "unit";
 export type PackUnit = "g" | "kg" | "ml" | "l" | "unit";
 export type MatchConfidence = "high" | "medium" | "low" | "unmatched";
 export type ExtractionStatus = "extracted" | "low_confidence" | "unreadable";
-export type ReviewStatus = "pending" | "in_review" | "confirmed";
 export type DocumentType = "invoice" | "recipe" | "menu";
 export type SourceFormat = "photo" | "pdf";
+
+// Two independent lifecycles on `documents` — do not conflate them (see 0002 migration).
+//
+//   ProcessingStatus = what the MACHINE has done. Has the AI read this document?
+//   ReviewStatus     = what the HUMAN has done. Has the chef confirmed it?
+//
+// A document can legitimately be `failed` + `pending` (extraction broke, nobody's
+// looked yet). One column can't say that; two can. Same reasoning as the design doc's
+// Extraction % vs Verified % split (§6).
+export type ProcessingStatus = "uploaded" | "extracting" | "extracted" | "failed";
+export type ReviewStatus = "pending" | "in_review" | "confirmed";
 
 export interface Venue {
   id: string;
@@ -64,6 +74,12 @@ export interface DocumentRow {
   id: string;
   venue_id: string;
   document_type: DocumentType;
+  /**
+   * Path *within* the private `documents` Storage bucket — e.g.
+   * "a1b2.../invoice/c3d4....jpg". NOT a public URL: supplier invoices are
+   * commercial data, so the bucket is private and the app mints short-lived
+   * signed URLs on demand. (Column name kept as-is to match 0001.)
+   */
   file_url: string;
   source_format: SourceFormat;
   supplier_id: string | null;
@@ -73,6 +89,8 @@ export interface DocumentRow {
   lines_extracted: number;
   lines_disregarded: number;
   lines_verified: number;
+  processing_status: ProcessingStatus;
+  extraction_error: string | null;
   review_status: ReviewStatus;
   created_at: string;
 }
@@ -149,20 +167,35 @@ export interface GpSnapshot {
 
 // Minimal Supabase Database generic — enough to type the client.
 // Extend row/insert/update per table as you build out queries.
+//
+// `Relationships: []` is REQUIRED on every table, not decorative. supabase-js's
+// internal `GenericTable` constraint is `{ Row, Insert, Update, Relationships }`.
+// Omit Relationships and the library can't recognise the table, so it silently
+// resolves insert/update payloads to `never` — which surfaces as the baffling
+// "venue_id does not exist in type 'never[]'" error on your first typed write.
+// Empty array = "no foreign-key relationships declared", which is fine for our
+// hand-written types; the generated types would fill these in.
+type Rel = []; // shorthand so the table map below stays readable
+
 export interface Database {
   public: {
     Tables: {
-      venues: { Row: Venue; Insert: Partial<Venue>; Update: Partial<Venue> };
-      ingredients: { Row: Ingredient; Insert: Partial<Ingredient>; Update: Partial<Ingredient> };
-      suppliers: { Row: Supplier; Insert: Partial<Supplier>; Update: Partial<Supplier> };
-      ingredient_aliases: { Row: IngredientAlias; Insert: Partial<IngredientAlias>; Update: Partial<IngredientAlias> };
-      supplier_products: { Row: SupplierProduct; Insert: Partial<SupplierProduct>; Update: Partial<SupplierProduct> };
-      documents: { Row: DocumentRow; Insert: Partial<DocumentRow>; Update: Partial<DocumentRow> };
-      invoice_lines: { Row: InvoiceLine; Insert: Partial<InvoiceLine>; Update: Partial<InvoiceLine> };
-      recipes: { Row: Recipe; Insert: Partial<Recipe>; Update: Partial<Recipe> };
-      recipe_lines: { Row: RecipeLine; Insert: Partial<RecipeLine>; Update: Partial<RecipeLine> };
-      menu_items: { Row: MenuItem; Insert: Partial<MenuItem>; Update: Partial<MenuItem> };
-      gp_snapshots: { Row: GpSnapshot; Insert: Partial<GpSnapshot>; Update: Partial<GpSnapshot> };
+      venues: { Row: Venue; Insert: Partial<Venue>; Update: Partial<Venue>; Relationships: Rel };
+      ingredients: { Row: Ingredient; Insert: Partial<Ingredient>; Update: Partial<Ingredient>; Relationships: Rel };
+      suppliers: { Row: Supplier; Insert: Partial<Supplier>; Update: Partial<Supplier>; Relationships: Rel };
+      ingredient_aliases: { Row: IngredientAlias; Insert: Partial<IngredientAlias>; Update: Partial<IngredientAlias>; Relationships: Rel };
+      supplier_products: { Row: SupplierProduct; Insert: Partial<SupplierProduct>; Update: Partial<SupplierProduct>; Relationships: Rel };
+      documents: { Row: DocumentRow; Insert: Partial<DocumentRow>; Update: Partial<DocumentRow>; Relationships: Rel };
+      invoice_lines: { Row: InvoiceLine; Insert: Partial<InvoiceLine>; Update: Partial<InvoiceLine>; Relationships: Rel };
+      recipes: { Row: Recipe; Insert: Partial<Recipe>; Update: Partial<Recipe>; Relationships: Rel };
+      recipe_lines: { Row: RecipeLine; Insert: Partial<RecipeLine>; Update: Partial<RecipeLine>; Relationships: Rel };
+      menu_items: { Row: MenuItem; Insert: Partial<MenuItem>; Update: Partial<MenuItem>; Relationships: Rel };
+      gp_snapshots: { Row: GpSnapshot; Insert: Partial<GpSnapshot>; Update: Partial<GpSnapshot>; Relationships: Rel };
     };
+    // Also required: supabase-js's `GenericSchema` is `{ Tables, Views, Functions }`.
+    // We have no views or DB functions yet, but the KEYS must exist or the whole
+    // schema fails the constraint and every insert/update silently becomes `never`.
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
   };
 }

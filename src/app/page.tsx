@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function DashboardPage() {
@@ -8,9 +9,17 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen p-8">
-      <header className="mb-8">
-        <h1 className="text-2xl font-semibold">GP Guardian</h1>
-        <p className="text-sm text-neutral-500">Signed in as {user?.email}</p>
+      <header className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">GP Guardian</h1>
+          <p className="text-sm text-neutral-500">Signed in as {user?.email}</p>
+        </div>
+        <Link
+          href="/documents"
+          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+        >
+          Upload invoices
+        </Link>
       </header>
 
       <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
