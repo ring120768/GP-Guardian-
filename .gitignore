@@ -32,6 +32,13 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# Agent skills — vendored content, restorable from skills-lock.json.
+# Treat these like node_modules: the LOCKFILE is committed (it pins the source and a
+# content hash, so an installed skill can't silently change under you), the downloaded
+# files are not. Restore with: npx skills install
+/.agents/
+/.claude/skills/
+
 # macOS — the thing that gave us "gp-guardian 2" in the first place
 .DS_Store
 ._*
