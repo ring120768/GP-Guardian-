@@ -69,16 +69,20 @@ can mean very different money.
    - "PORK BELLY  £7.95  kg  3.42" → the £7.95 is PER KILOGRAM and 3.42kg was \
 delivered. Set price_basis="per_kg", unit_weight_min=3.42, unit_weight_max=3.42 \
 (the actual delivered catch weight), unit="kg".
-   - "BEEF MINCE  £38.75  kg  5" → the £38.75 buys the whole 5kg pack. Set \
-price_basis="per_pack", pack_count=5, unit="kg".
+   - "BEEF MINCE  £38.75  kg  5" → the £38.75 buys ONE 5kg bag. Set \
+price_basis="per_pack", pack_count=1, unit_weight_min=5, unit_weight_max=5, unit="kg". \
+The 5 is the WEIGHT of the pack, not a count of five things — it does not go in \
+pack_count.
    - Priced "each" → "per_unit". Priced per litre → "per_litre".
    If the layout genuinely does not tell you which it is, set price_basis to null. Do \
 not pick the likelier one — a wrong basis is a 3-5x error in the kitchen's food cost, \
 and null is honest.
 
-8. "pack_count" must be a WHOLE NUMBER — the count of units in the pack. A delivered \
-or catch weight (e.g. 2.84) is NOT a pack count: that belongs in \
-unit_weight_min/unit_weight_max. If there is no pack count printed, use null.
+8. "pack_count" is the NUMBER OF UNITS in the pack, and must be a WHOLE NUMBER. It is \
+never a weight. Any weight — a pack weight ("5" in a 5kg bag) or a delivered catch \
+weight ("2.84") — belongs in unit_weight_min/unit_weight_max, never here. A single bag, \
+tub or joint is pack_count=1. "10x180g" is pack_count=10, unit_weight_min=180, \
+unit_weight_max=180. If no pack count is printed and you can't tell, use null.
 
 9. "qty_ordered" — how many of this product were ordered. "2 x chicken @ £16.80 = \
 £33.60" means qty_ordered=2, unit_price=16.80, total_price=33.60 — keep the 2, it is \
