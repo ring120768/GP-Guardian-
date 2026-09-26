@@ -45,11 +45,11 @@ export function DeleteDocumentButton({ documentId, lineCount, onDeleted }: Delet
       onDeleted();
       router.refresh();
     } catch (err) {
-      // "Nothing was deleted" is true from where we stand: we never got a success
-      // back, so the refresh after a retry will show the real state either way.
+      // On a timeout we genuinely don't know — the server may have finished the
+      // delete after we stopped waiting — so tell the chef to refresh and check.
       setError(
         (err as Error).name === "AbortError"
-          ? "No response from the server — nothing was deleted. Check the dev server and try again."
+          ? "No response from the server — it may not have been deleted. Refresh the page to check, then try again if it's still there."
           : (err as Error).message,
       );
       setBusy(false);
