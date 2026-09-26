@@ -127,7 +127,9 @@ export interface InvoiceLineRow {
   invoice_number: string | null;
   invoice_date: string | null;
   extraction_status: "extracted" | "low_confidence";
-  match_confidence: "unmatched";
+  /** Set by the pipeline when a known alias matches (design doc §3 step 2). */
+  ingredient_id: string | null;
+  match_confidence: "unmatched" | "high";
 }
 
 export interface BuildRowsResult {
@@ -186,6 +188,7 @@ export function buildInvoiceLineRows(
       // NOT matched to an ingredient and NOT finalised — the alias-matching slice
       // (design doc §3) and the review/confirm UI come next. Every line starts life as
       // "unmatched", waiting for a human. Principle #2 made concrete.
+      ingredient_id: null,
       match_confidence: "unmatched",
       // is_estimated defaults true in the schema; costing recalculates it later.
     });

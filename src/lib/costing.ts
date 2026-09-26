@@ -1,17 +1,28 @@
 // Costing & GP math — matches gp-guardian-ingredient-matching-design.md Part B §10-11, Part C.
 // Kept as pure functions with no DB access so they're easy to test in isolation.
 
-import type { RecipeLine, SupplierProduct } from "@/types/database";
+import type { IngredientKind, RecipeLine, SupplierProduct } from "@/types/database";
 
-export interface IngredientCostLookup {
-  ingredient_id: string;
-  cost_per_canonical_unit: number; // £ per gram / ml / unit
+/**
+ * What costing needs to know about one ingredient.
+ *   costPerUnit  → £ per canonical unit (per g / ml / unit). Null = no price yet.
+ *   yieldPercent → 1–100; 100 = off (see CLAUDE.md "Money rules").
+ *   kind         → by_product costs £0; non_food must never be in a recipe.
+ */
+export interface IngredientCost {
+  costPerUnit: number | null;
+  yieldPercent: number;
+  kind: IngredientKind;
 }
+
+/** Why a line couldn't be costed — so the UI can say what's missing, not just "incomplete". */
+export type LineCostProblem = "unmatched" | "no_price" | "non_food";
 
 export interface LineCostResult {
   recipe_line_id: string;
-  line_cost: number | null; // null if unmatched or no price yet
+  line_cost: number | null; // null if it can't be costed — never a guess
   matched: boolean;
+  problem: LineCostProblem | null;
 }
 
 /**
@@ -33,27 +44,48 @@ export function resolvePackWeight(product: SupplierProduct): {
 }
 
 /**
- * Part B §10 — cost a single recipe line given a resolved ingredient cost.
- * Returns null (not a guess) if the ingredient is unmatched or has no price yet.
+ * Part B §10 — cost a single recipe line, using the ingredient's yield.
+ *
+ *   line cost = quantity ÷ (yield / 100) × price per unit
+ *
+ * 100g of usable fillet at 80% yield means you bought 125g, so you pay for 125g.
+ *
+ * recipe_lines.waste_percentage is DEPRECATED and deliberately ignored: everyday waste
+ * is now the venue's flat allowance in gpPercent(), and prep loss is the ingredient's
+ * yield. Applying both would double-count it.
+ *
+ * Returns null (not a guess) if the ingredient is unmatched, has no price yet, or is
+ * non-food — a non-food item in a recipe is a mistake to fix, not something to quietly
+ * skip, so the recipe shows as incomplete and names the line.
  */
 export function costRecipeLine(
   line: RecipeLine,
-  costLookup: Map<string, number> // ingredient_id -> cost per canonical unit
+  costs: Map<string, IngredientCost> // ingredient_id → cost info
 ): LineCostResult {
-  if (!line.ingredient_id) {
-    return { recipe_line_id: line.id, line_cost: null, matched: false };
-  }
+  const fail = (problem: LineCostProblem): LineCostResult => ({
+    recipe_line_id: line.id,
+    line_cost: null,
+    matched: false,
+    problem,
+  });
 
-  const costPerUnit = costLookup.get(line.ingredient_id);
-  if (costPerUnit == null) {
-    return { recipe_line_id: line.id, line_cost: null, matched: false };
-  }
+  if (!line.ingredient_id) return fail("unmatched");
+  const ingredient = costs.get(line.ingredient_id);
+  if (!ingredient) return fail("no_price");
+  if (ingredient.kind === "non_food") return fail("non_food");
 
-  const effectiveQuantity = line.quantity * (1 + line.waste_percentage / 100);
+  // Trim/bones: £0, so the parent cut carries the whole cost. No price needed.
+  if (ingredient.kind === "by_product") {
+    return { recipe_line_id: line.id, line_cost: 0, matched: true, problem: null };
+  }
+  if (ingredient.costPerUnit === null) return fail("no_price");
+
+  const paidForQuantity = line.quantity / (ingredient.yieldPercent / 100);
   return {
     recipe_line_id: line.id,
-    line_cost: effectiveQuantity * costPerUnit,
+    line_cost: paidForQuantity * ingredient.costPerUnit,
     matched: true,
+    problem: null,
   };
 }
 
@@ -70,10 +102,10 @@ export interface RecipeCostResult {
  */
 export function costRecipe(
   lines: RecipeLine[],
-  costLookup: Map<string, number>,
+  costs: Map<string, IngredientCost>,
   portions: number
 ): RecipeCostResult {
-  const results = lines.map((line) => costRecipeLine(line, costLookup));
+  const results = lines.map((line) => costRecipeLine(line, costs));
   const missing = results.filter((r) => !r.matched).map((r) => r.recipe_line_id);
 
   if (missing.length > 0) {
@@ -91,20 +123,58 @@ export function costRecipe(
   return { totalCost, costPerPortion, isIncomplete: false, missingIngredientLineIds: [] };
 }
 
-/**
- * Part C — GP% for a given cost and selling price.
- */
-export function calculateGpPercent(costPerPortion: number, sellingPrice: number): number | null {
-  if (sellingPrice <= 0) return null;
-  return ((sellingPrice - costPerPortion) / sellingPrice) * 100;
+// ─────────────────────────────────────────────────────────────────────────────
+// GP — the agreed money rules (CLAUDE.md "Money rules"):
+//   • Menu prices INCLUDE VAT. GP is always on the NET price.
+//   • A flat waste allowance (% of net) comes off GP.
+// Percentages are passed as whole numbers: 20 means 20%.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Menu price without VAT. £18 at 20% → £15. */
+export function netPrice(menuPrice: number, vatRate: number): number {
+  return menuPrice / (1 + vatRate / 100);
 }
 
 /**
- * Part C §14 — recommended price is a suggestion only, never auto-applied to selling_price.
+ * GP% on the net price, after the waste allowance.
+ *
+ *   GP% = (net − cost − net × waste%) ÷ net × 100
+ *
+ * £4.50 cost, £18 menu price, 20% VAT, 4% waste:
+ *   net £15 → (15 − 4.50 − 0.60) ÷ 15 = 66.0%
+ *
+ * Null for a zero/negative price — there's no GP to speak of, and dividing by it is nonsense.
  */
-export function calculateRecommendedPrice(costPerPortion: number, targetGp: number): number | null {
-  if (targetGp >= 100) return null; // avoid divide-by-zero / nonsensical target
-  return costPerPortion / (1 - targetGp / 100);
+export function gpPercent(
+  cost: number,
+  menuPrice: number,
+  vatRate: number,
+  wastePct: number
+): number | null {
+  if (menuPrice <= 0) return null;
+  const net = netPrice(menuPrice, vatRate);
+  return ((net - cost - net * (wastePct / 100)) / net) * 100;
+}
+
+/**
+ * Part C §14 — the menu price (inc. VAT) that hits the target GP. A SUGGESTION only —
+ * never written to selling_price (non-negotiable #3).
+ *
+ *   net needed = cost ÷ (1 − target% − waste%)     ← rearranged from gpPercent()
+ *   menu price = net needed × (1 + VAT%)
+ *
+ * Null when target% + waste% ≥ 100: no price can get there (it'd need a negative cost).
+ * Round-trips: gpPercent(cost, recommendedMenuPrice(cost, t, v, w), v, w) === t.
+ */
+export function recommendedMenuPrice(
+  cost: number,
+  targetGp: number,
+  vatRate: number,
+  wastePct: number
+): number | null {
+  if (targetGp + wastePct >= 100) return null;
+  const net = cost / (1 - targetGp / 100 - wastePct / 100);
+  return net * (1 + vatRate / 100);
 }
 
 /**

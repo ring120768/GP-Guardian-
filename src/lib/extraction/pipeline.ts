@@ -23,6 +23,7 @@ import type { Database, DocumentRow } from "@/types/database";
 import { STORAGE_BUCKET } from "@/lib/documents/upload";
 import { extractInvoice } from "./extract";
 import { buildInvoiceLineRows, type InvoiceLineRow } from "./lines";
+import { findExactAlias } from "@/lib/matching/match";
 
 type Supabase = SupabaseClient<Database>;
 
@@ -127,6 +128,18 @@ export async function runExtraction(
       invoice,
       { venueId: doc.venue_id, documentId: doc.id, supplierId }
     );
+
+    // ── Auto-match known products (design doc §3 step 2) ─────
+    // Any line whose product the chef has matched before gets its ingredient now, with
+    // zero clicks. Everything else stays 'unmatched' for the Match ingredients queue.
+    const aliases = await fetchAliases(supabase, doc.venue_id);
+    for (const row of rows) {
+      const ingredientId = findExactAlias(row.product_name_raw, aliases, supplierId);
+      if (ingredientId) {
+        row.ingredient_id = ingredientId;
+        row.match_confidence = "high";
+      }
+    }
 
     const { saved, rejected } = await insertLines(supabase, rows);
     const linesDisregarded = disregardedByValidation + rejected;
@@ -250,6 +263,17 @@ async function findOrCreateSupplier(
     throw new Error(`Couldn't save the supplier "${name}": ${insertError?.message}`);
   }
   return created.id;
+}
+
+/** The venue's confirmed matches, for auto-matching new lines. */
+async function fetchAliases(supabase: Supabase, venueId: string) {
+  const { data, error } = await supabase
+    .from("ingredient_aliases")
+    .select("ingredient_id, raw_text, supplier_id")
+    .eq("venue_id", venueId);
+  // Not fatal: without aliases every line just lands in the queue, which is safe.
+  if (error) console.error("[extraction] Couldn't load aliases for auto-match:", error.message);
+  return data ?? [];
 }
 
 /**

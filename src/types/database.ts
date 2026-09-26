@@ -10,6 +10,8 @@ export type ExtractionStatus = "extracted" | "low_confidence" | "unreadable";
 // and "£38.75 kg 5" (per 5kg pack) look almost identical on paper, so when the layout
 // genuinely doesn't say we record an honest gap rather than a 3-5x costing error.
 export type PriceBasis = "per_pack" | "per_kg" | "per_litre" | "per_unit";
+/** food → costed; non_food → tracked, never in recipes; by_product → costed at £0. */
+export type IngredientKind = "food" | "non_food" | "by_product";
 export type DocumentType = "invoice" | "recipe" | "menu";
 export type SourceFormat = "photo" | "pdf";
 
@@ -35,6 +37,10 @@ export interface Venue {
   name: string;
   default_target_gp: number;
   currency: string;
+  /** Menu prices include VAT; GP is on the net price. Default 20. */
+  vat_rate: number;
+  /** Flat waste allowance, % of NET selling price, taken off GP. Default 4. */
+  waste_allowance_pct: number;
   created_at: string;
 }
 
@@ -44,6 +50,9 @@ export interface Ingredient {
   canonical_name: string;
   default_unit: Unit;
   active: boolean;
+  /** % usable after in-house prep, 1–100. 100 = off. */
+  yield_percent: number;
+  kind: IngredientKind;
   created_at: string;
 }
 
@@ -173,6 +182,10 @@ export interface RecipeLine {
   raw_text: string;
   quantity: number;
   unit: Unit;
+  /**
+   * @deprecated Superseded by venues.waste_allowance_pct + ingredients.yield_percent
+   * (CLAUDE.md "Money rules"). Still in the schema; costing ignores it.
+   */
   waste_percentage: number;
   match_confidence: MatchConfidence | null;
 }

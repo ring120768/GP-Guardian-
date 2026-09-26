@@ -62,6 +62,24 @@ Foundations are built:
    assumptions that make it painful to add later either (every table already has
    `venue_id`).
 
+## Money rules (agreed)
+
+Decided with the mentor — implemented in `src/lib/costing.ts`. Don't drift from these.
+
+- **Menu prices INCLUDE VAT.** GP is always calculated on the **net** price:
+  `net = menu price ÷ (1 + vat_rate/100)`. `venues.vat_rate`, default 20.
+- **Waste: a flat allowance** of `venues.waste_allowance_pct` (default 4) of the NET
+  selling price, taken off GP. Covers everyday prep/spoilage waste (WRAP baseline ≈ 3.6%
+  of sales). So `GP% = (net − cost − net × waste%) ÷ net × 100`.
+- **Yield: optional per ingredient**, `ingredients.yield_percent`, default 100 (= off).
+  Only for in-house butchery/filleting. Cost per usable gram = price per gram ÷ yield.
+  (100g usable at 80% yield → you paid for 125g.)
+- **Trim / by-products** are their own ingredient with `kind = 'by_product'`, costed at
+  £0, so the parent cut carries the full cost (conservative). A trim-value credit is a
+  later feature.
+- **`recipe_lines.waste_percentage` is DEPRECATED** — superseded by the waste allowance
+  and yield above. Left in the schema, ignored by costing.
+
 ## Tech stack
 
 Next.js 14 (App Router) + TypeScript + Tailwind + Supabase (Postgres, Auth, Storage).

@@ -11,19 +11,26 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+// `exact`: only highlight on that exact URL. "/" would otherwise match everything, and
+// "/ingredients" would light up on "/ingredients/match" alongside Match ingredients.
 const LINKS = [
-  { href: "/", label: "Dashboard" },
+  { href: "/", label: "Dashboard", exact: true },
   // URL stays /documents (recipes and menus will be documents too); the chef sees "Invoices".
-  { href: "/documents", label: "Invoices" },
-  { href: "/suppliers", label: "Suppliers" },
+  { href: "/documents", label: "Invoices", exact: false },
+  { href: "/suppliers", label: "Suppliers", exact: false },
+  { href: "/ingredients", label: "Ingredients", exact: true },
+  { href: "/ingredients/match", label: "Match ingredients", exact: true, badge: true },
 ];
 
-/** "/" only matches exactly; the others also match their sub-pages (/suppliers/abc). */
-function isActive(pathname: string, href: string) {
-  return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+function isActive(pathname: string, href: string, exact: boolean) {
+  return exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function NavBar() {
+/**
+ * @param matchCount products waiting in the Match ingredients queue — loaded by the
+ *   layout. Null if it couldn't be loaded: then no badge, rather than a wrong "0".
+ */
+export function NavBar({ matchCount }: { matchCount: number | null }) {
   const pathname = usePathname();
   if (pathname.startsWith("/login")) return null;
 
@@ -34,8 +41,8 @@ export function NavBar() {
           GP Guardian
         </Link>
         <ul className="flex gap-1 text-sm">
-          {LINKS.map(({ href, label }) => {
-            const active = isActive(pathname, href);
+          {LINKS.map(({ href, label, exact, badge }) => {
+            const active = isActive(pathname, href, exact);
             return (
               <li key={href}>
                 <Link
@@ -48,6 +55,11 @@ export function NavBar() {
                   }`}
                 >
                   {label}
+                  {badge && matchCount !== null && matchCount > 0 && (
+                    <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">
+                      {matchCount}
+                    </span>
+                  )}
                 </Link>
               </li>
             );
