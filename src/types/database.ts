@@ -93,6 +93,8 @@ export interface DocumentRow {
   file_url: string;
   source_format: SourceFormat;
   supplier_id: string | null;
+  /** Supplier name exactly as printed. supplier_id is our link; this is the evidence. */
+  supplier_name_raw: string | null;
   invoice_number: string | null;
   invoice_date: string | null;
   lines_detected: number;
