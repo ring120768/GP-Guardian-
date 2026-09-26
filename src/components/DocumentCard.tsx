@@ -68,6 +68,18 @@ export function DocumentCard({
           >
             {health.label}
           </span>
+          {doc.review_status === "confirmed" && (
+            <span className="text-xs font-medium text-emerald-700">Confirmed ✓</span>
+          )}
+          {/* Only once the machine has read it — before that there's nothing to review. */}
+          {doc.processing_status === "extracted" && (
+            <Link
+              href={`/documents/${doc.id}/review`}
+              className="text-xs font-medium text-neutral-700 hover:underline"
+            >
+              Review
+            </Link>
+          )}
           {/* Confirmed invoices feed costing, so they get no Delete at all — the API
             refuses them too (same canDeleteDocument() rule on both sides).
             lines_extracted = rows actually saved to invoice_lines, i.e. what the
@@ -88,7 +100,11 @@ export function DocumentCard({
               AI read. Saying so stops a misread price looking like a real rise. */}
           <p className="text-xs font-medium text-neutral-500">
             Price changes vs last invoice{" "}
-            <span className="font-normal text-neutral-400">(from unconfirmed lines)</span>
+            <span className="font-normal text-neutral-400">
+              {doc.review_status === "confirmed"
+                ? "(from confirmed lines)"
+                : "(from unconfirmed lines)"}
+            </span>
           </p>
           <ul className="mt-1 space-y-0.5">
             {priceChanges.map((r, i) => {

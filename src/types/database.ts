@@ -144,6 +144,10 @@ export interface InvoiceLine {
   is_estimated: boolean;
   extraction_status: ExtractionStatus;
   match_confidence: MatchConfidence | null;
+  /** When the chef confirmed this line. Null = not confirmed. Editing resets it to null. */
+  verified_at: string | null;
+  /** The AI's values, snapshotted on the chef's FIRST edit. Null = never edited. */
+  ai_original: Record<string, unknown> | null;
   created_at: string;
 }
 
