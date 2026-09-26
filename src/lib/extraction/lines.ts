@@ -112,6 +112,7 @@ export function validateExtractedLine(raw: ExtractedLine): ValidatedLine | null 
 export interface InvoiceLineRow {
   venue_id: string;
   document_id: string;
+  supplier_id: string | null;
   product_name_raw: string;
   pack_count: number | null;
   qty_ordered: number | null;
@@ -141,7 +142,7 @@ export interface BuildRowsResult {
  */
 export function buildInvoiceLineRows(
   invoice: ExtractedInvoice,
-  ctx: { venueId: string; documentId: string }
+  ctx: { venueId: string; documentId: string; supplierId?: string | null }
 ): BuildRowsResult {
   const rows: InvoiceLineRow[] = [];
   let linesDisregarded = 0;
@@ -162,6 +163,9 @@ export function buildInvoiceLineRows(
     rows.push({
       venue_id: ctx.venueId,
       document_id: ctx.documentId,
+      // Every line carries the supplier too, so price comparisons can query lines
+      // directly without joining back through documents.
+      supplier_id: ctx.supplierId ?? null,
       product_name_raw: line.product_name_raw,
       pack_count: line.pack_count,
       qty_ordered: line.qty_ordered,

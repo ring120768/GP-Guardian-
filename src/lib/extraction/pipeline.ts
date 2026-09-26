@@ -7,7 +7,8 @@
 //   2. Download the file bytes from Storage.
 //   3. Gather this venue's known aliases to prime the prompt (design doc §3).
 //   4. Call the AI (extract.ts) → validated invoice.
-//   5. Write invoice_lines — one row per readable line, NONE finalised (design doc #2:
+//   5. Link the supplier (find-or-create) and save the header — BEFORE any lines.
+//   5b. Write invoice_lines — one row per readable line, NONE finalised (design doc #2:
 //      AI extracts, human confirms). Unreadable lines are disregarded, never invented (§6).
 //   6. Update the document's counters + header fields, set processing_status = 'extracted'.
 //
@@ -88,13 +89,43 @@ export async function runExtraction(
       knownAliases,
     });
 
+    // ── Link the supplier + save the header, BEFORE any lines ─
+    // Order matters here. documents has a unique index on (venue, supplier, invoice
+    // number, date) — the duplicate-invoice check from design doc Part A §5. It only
+    // bites once supplier_id is set, i.e. from now on. Saving the header first means a
+    // duplicate upload fails HERE, before we've written a second copy of its lines.
+    const supplierNameRaw = invoice.supplier_name?.trim() || null;
+    const supplierId = supplierNameRaw
+      ? await findOrCreateSupplier(supabase, doc.venue_id, supplierNameRaw)
+      : null; // no readable supplier name → honestly unlinked, not guessed
+
+    const { error: headerError } = await supabase
+      .from("documents")
+      .update({
+        supplier_id: supplierId,
+        supplier_name_raw: supplierNameRaw,
+        invoice_number: invoice.invoice_number,
+        invoice_date: invoice.invoice_date,
+      })
+      .eq("id", documentId);
+
+    if (headerError) {
+      // 23505 = Postgres "unique violation".
+      if (headerError.code === "23505") {
+        throw new Error(
+          "This looks like a duplicate — an invoice from the same supplier with the same number and date is already uploaded. Delete this copy."
+        );
+      }
+      throw new Error(`Couldn't save the invoice details: ${headerError.message}`);
+    }
+
     // ── Write invoice_lines (never finalised) ────────────────
     // Every line is validated on its own first (see lines.ts). A line we can't store
     // cleanly is stored flagged, or disregarded and counted — but it can no longer take
     // the rest of the invoice down with it.
     const { rows, linesDisregarded: disregardedByValidation } = buildInvoiceLineRows(
       invoice,
-      { venueId: doc.venue_id, documentId: doc.id }
+      { venueId: doc.venue_id, documentId: doc.id, supplierId }
     );
 
     const { saved, rejected } = await insertLines(supabase, rows);
@@ -114,8 +145,6 @@ export async function runExtraction(
       .update({
         processing_status: "extracted",
         extraction_error: null,
-        invoice_number: invoice.invoice_number,
-        invoice_date: invoice.invoice_date,
         lines_detected: linesDetected,
         lines_extracted: linesExtracted,
         lines_disregarded: linesDisregarded,
@@ -125,8 +154,6 @@ export async function runExtraction(
         // every week. They still count toward the invoice total.
         delivery_charge: invoice.delivery_charge,
         other_charges: invoice.other_charges,
-        // Supplier matching (creating/linking a suppliers row from invoice.supplier_name)
-        // is its own slice — left null for now rather than half-built.
       })
       .eq("id", documentId);
 
@@ -182,6 +209,47 @@ async function insertLines(
   }
 
   return { saved, rejected };
+}
+
+/**
+ * Find this venue's supplier by name, or create it. Returns the supplier id.
+ *
+ * Match rule: trimmed, case-insensitive, otherwise EXACT. "Browns Meats" matches
+ * "BROWNS MEATS " but not "Browns Meats Ltd" — anything fuzzier risks merging two
+ * different suppliers' prices, which would make every price alert wrong. Near-misses
+ * just create a second supplier; merging them is a job for a human later.
+ *
+ * Why compare in JS instead of `.ilike("name", name)`: ilike treats % and _ as
+ * wildcards, so a supplier called "100% BEEF CO" would match things it shouldn't.
+ * A venue has dozens of suppliers, not thousands, so loading them all is cheap.
+ */
+async function findOrCreateSupplier(
+  supabase: Supabase,
+  venueId: string,
+  name: string
+): Promise<string> {
+  const { data: suppliers, error } = await supabase
+    .from("suppliers")
+    .select("id, name")
+    .eq("venue_id", venueId);
+  if (error) throw new Error(`Couldn't look up suppliers: ${error.message}`);
+
+  const wanted = name.trim().toLowerCase();
+  const existing = (suppliers ?? []).find((s) => s.name.trim().toLowerCase() === wanted);
+  if (existing) return existing.id;
+
+  // ponytail: two brand-new invoices from the same new supplier extracted at the same
+  // instant could each create a row. A unique index on (venue_id, lower(trim(name)))
+  // would close that gap if it ever happens.
+  const { data: created, error: insertError } = await supabase
+    .from("suppliers")
+    .insert({ venue_id: venueId, name: name.trim() })
+    .select("id")
+    .single();
+  if (insertError || !created) {
+    throw new Error(`Couldn't save the supplier "${name}": ${insertError?.message}`);
+  }
+  return created.id;
 }
 
 /**

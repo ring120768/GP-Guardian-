@@ -9,6 +9,10 @@ import { createClient } from "@/lib/supabase/server";
 import { DocumentUploader } from "@/components/DocumentUploader";
 import { DocumentCard } from "@/components/DocumentCard";
 import type { DocumentRow, Venue } from "@/types/database";
+import { comparePrices, type PriceComparison, type PriceLine } from "@/lib/prices/compare";
+
+// Only these are worth a line on the card. 'same', 'new' and 'skipped' would just be noise.
+const SHOWN_STATUSES = new Set(["up", "down", "pack_changed"]);
 
 export default async function DocumentsPage() {
   const supabase = createClient();
@@ -27,6 +31,36 @@ export default async function DocumentsPage() {
     .eq("document_type", "invoice")
     .order("created_at", { ascending: false })
     .returns<DocumentRow[]>();
+
+  // Every invoice line, for price-change alerts. Only the columns comparePrices needs.
+  // ponytail: loads the venue's whole line history on every page view. Fine for months
+  // of one kitchen's invoices; if it gets slow, only load lines for the suppliers on
+  // screen, or keep a latest-price-per-product table (supplier_products has the columns).
+  const { data: lines } = await supabase
+    .from("invoice_lines")
+    .select(
+      "document_id, supplier_id, product_name_raw, price_basis, unit, pack_count, unit_weight_min, unit_weight_max, unit_price, total_price, extraction_status, invoice_number, invoice_date",
+    )
+    .returns<(PriceLine & { document_id: string })[]>();
+
+  // Group once, so each card only compares against its own supplier's lines instead of
+  // scanning every line the venue has ever had.
+  const linesByDoc = new Map<string, PriceLine[]>();
+  const linesBySupplier = new Map<string, PriceLine[]>();
+  for (const l of lines ?? []) {
+    linesByDoc.set(l.document_id, [...(linesByDoc.get(l.document_id) ?? []), l]);
+    if (l.supplier_id) {
+      linesBySupplier.set(l.supplier_id, [...(linesBySupplier.get(l.supplier_id) ?? []), l]);
+    }
+  }
+
+  function priceChangesFor(doc: DocumentRow): PriceComparison[] {
+    if (!doc.supplier_id) return []; // no supplier → nothing to compare against
+    return comparePrices(
+      linesByDoc.get(doc.id) ?? [],
+      linesBySupplier.get(doc.supplier_id) ?? [],
+    ).filter((r) => SHOWN_STATUSES.has(r.status));
+  }
 
   return (
     <div className="min-h-screen p-8">
@@ -54,7 +88,9 @@ export default async function DocumentsPage() {
           Uploaded ({documents?.length ?? 0})
         </h2>
         {documents && documents.length > 0 ? (
-          documents.map((doc) => <DocumentCard key={doc.id} doc={doc} />)
+          documents.map((doc) => (
+            <DocumentCard key={doc.id} doc={doc} priceChanges={priceChangesFor(doc)} />
+          ))
         ) : (
           <p className="rounded-lg border border-dashed border-neutral-200 p-6 text-center text-sm text-neutral-400">
             Nothing uploaded yet. Drop an invoice above to get started.
