@@ -2,12 +2,23 @@
 // (§6's two-signal logic) — so the moment Ringo fills that function in, every card
 // starts telling the truth about whether a document needs re-shooting, reviewing,
 // or nothing at all.
+//
+// Client component only so it can hide itself the instant a delete succeeds
+// (before router.refresh() comes back). Everything it imports is pure.
 
+"use client";
+
+import { useState } from "react";
 import type { DocumentRow } from "@/types/database";
 import { getDocumentHealth, HEALTH_STYLES } from "@/lib/documents/health";
 import { ExtractButton } from "@/components/ExtractButton";
+import { DeleteDocumentButton } from "@/components/DeleteDocumentButton";
+import { canDeleteDocument } from "@/lib/documents/delete";
 
 export function DocumentCard({ doc }: { doc: DocumentRow }) {
+  const [deleted, setDeleted] = useState(false);
+  if (deleted) return null;
+
   const health = getDocumentHealth(doc);
 
   return (
@@ -36,6 +47,17 @@ export function DocumentCard({ doc }: { doc: DocumentRow }) {
         >
           {health.label}
         </span>
+        {/* Confirmed invoices feed costing, so they get no Delete at all — the API
+            refuses them too (same canDeleteDocument() rule on both sides).
+            lines_extracted = rows actually saved to invoice_lines, i.e. what the
+            cascade will remove. */}
+        {canDeleteDocument(doc).allowed && (
+          <DeleteDocumentButton
+            documentId={doc.id}
+            lineCount={doc.lines_extracted}
+            onDeleted={() => setDeleted(true)}
+          />
+        )}
       </div>
     </div>
   );
