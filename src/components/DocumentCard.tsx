@@ -6,6 +6,8 @@
 import type { DocumentRow } from "@/types/database";
 import { getDocumentHealth, HEALTH_STYLES } from "@/lib/documents/health";
 import { ExtractButton } from "@/components/ExtractButton";
+import { DeleteDocumentButton } from "@/components/DeleteDocumentButton";
+import { canDeleteDocument } from "@/lib/documents/delete";
 
 export function DocumentCard({ doc }: { doc: DocumentRow }) {
   const health = getDocumentHealth(doc);
@@ -36,6 +38,13 @@ export function DocumentCard({ doc }: { doc: DocumentRow }) {
         >
           {health.label}
         </span>
+        {/* Confirmed invoices feed costing, so they get no Delete at all — the API
+            refuses them too (same canDeleteDocument() rule on both sides).
+            lines_extracted = rows actually saved to invoice_lines, i.e. what the
+            cascade will remove. */}
+        {canDeleteDocument(doc).allowed && (
+          <DeleteDocumentButton documentId={doc.id} lineCount={doc.lines_extracted} />
+        )}
       </div>
     </div>
   );
