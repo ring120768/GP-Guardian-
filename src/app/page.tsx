@@ -14,12 +14,20 @@ export default async function DashboardPage() {
           <h1 className="text-2xl font-semibold">GP Guardian</h1>
           <p className="text-sm text-neutral-500">Signed in as {user?.email}</p>
         </div>
-        <Link
-          href="/documents"
-          className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
-        >
-          Upload invoices
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/suppliers"
+            className="rounded-md border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+          >
+            Suppliers
+          </Link>
+          <Link
+            href="/documents"
+            className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800"
+          >
+            Upload invoices
+          </Link>
+        </div>
       </header>
 
       <section className="grid grid-cols-1 md:grid-cols-3 gap-4">

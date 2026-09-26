@@ -9,26 +9,23 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { DocumentRow } from "@/types/database";
 import { getDocumentHealth, HEALTH_STYLES } from "@/lib/documents/health";
 import { ExtractButton } from "@/components/ExtractButton";
 import { DeleteDocumentButton } from "@/components/DeleteDocumentButton";
 import { canDeleteDocument } from "@/lib/documents/delete";
 import { alertColour, type PriceComparison } from "@/lib/prices/compare";
-
-const COLOUR_CLASSES = {
-  red: "text-red-600",
-  amber: "text-amber-600",
-  green: "text-green-700",
-} as const;
-
-const gbp = (n: number | null) => (n === null ? "—" : `£${n.toFixed(2)}`);
+import { formatGBP, formatPct, ALERT_TEXT_CLASSES } from "@/lib/format";
 
 export function DocumentCard({
   doc,
+  supplierName,
   priceChanges,
 }: {
   doc: DocumentRow;
+  /** The linked supplier's name, or null if no supplier is linked yet. */
+  supplierName: string | null;
   /** Already filtered to up / down / pack_changed by the page. */
   priceChanges: PriceComparison[];
 }) {
@@ -47,6 +44,13 @@ export function DocumentCard({
               {doc.source_format}
             </span>
           </p>
+          {doc.supplier_id && supplierName && (
+            <p className="text-xs">
+              <Link href={`/suppliers/${doc.supplier_id}`} className="text-neutral-700 hover:underline">
+                {supplierName}
+              </Link>
+            </p>
+          )}
           <p className="mt-0.5 text-xs text-neutral-500">
             {doc.invoice_date ?? new Date(doc.created_at).toLocaleDateString("en-GB")}
             {" · "}
@@ -92,13 +96,13 @@ export function DocumentCard({
               return (
                 <li
                   key={i}
-                  className={`text-xs ${colour ? COLOUR_CLASSES[colour] : "text-neutral-500"}`}
+                  className={`text-xs ${colour ? ALERT_TEXT_CLASSES[colour] : "text-neutral-500"}`}
                   title={`Last invoice: ${r.previousInvoiceNumber ?? "no number"}, ${r.previousDate}`}
                 >
-                  {r.productName} {gbp(r.previousPrice)} → {gbp(r.currentPrice)}{" "}
+                  {r.productName} {formatGBP(r.previousPrice)} → {formatGBP(r.currentPrice)}{" "}
                   {r.status === "pack_changed"
                     ? "pack size changed"
-                    : `${r.changePct! > 0 ? "+" : ""}${r.changePct!.toFixed(1)}%`}
+                    : formatPct(r.changePct!)}
                 </li>
               );
             })}

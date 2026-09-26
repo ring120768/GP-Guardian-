@@ -5,10 +5,11 @@
 // client component. This is the standard App Router split — data on the server,
 // interactivity on the client.
 
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { DocumentUploader } from "@/components/DocumentUploader";
 import { DocumentCard } from "@/components/DocumentCard";
-import type { DocumentRow, Venue } from "@/types/database";
+import type { DocumentRow, Supplier, Venue } from "@/types/database";
 import { comparePrices, type PriceComparison, type PriceLine } from "@/lib/prices/compare";
 
 // Only these are worth a line on the card. 'same', 'new' and 'skipped' would just be noise.
@@ -43,6 +44,13 @@ export default async function DocumentsPage() {
     )
     .returns<(PriceLine & { document_id: string })[]>();
 
+  // Supplier names for the card links. One small query; a venue has dozens, not thousands.
+  const { data: suppliers } = await supabase
+    .from("suppliers")
+    .select("id, name")
+    .returns<Pick<Supplier, "id" | "name">[]>();
+  const supplierNames = new Map((suppliers ?? []).map((s) => [s.id, s.name]));
+
   // Group once, so each card only compares against its own supplier's lines instead of
   // scanning every line the venue has ever had.
   const linesByDoc = new Map<string, PriceLine[]>();
@@ -65,7 +73,16 @@ export default async function DocumentsPage() {
   return (
     <div className="min-h-screen p-8">
       <header className="mb-8">
-        <h1 className="text-2xl font-semibold">Invoices</h1>
+        <p className="text-sm">
+          <Link href="/" className="text-neutral-500 hover:underline">
+            ← Dashboard
+          </Link>
+          {" · "}
+          <Link href="/suppliers" className="text-neutral-500 hover:underline">
+            Suppliers
+          </Link>
+        </p>
+        <h1 className="mt-2 text-2xl font-semibold">Invoices</h1>
         <p className="text-sm text-neutral-500">
           Upload supplier invoices — photos or PDFs. The chef confirms; nothing is
           finalised automatically.
@@ -89,7 +106,12 @@ export default async function DocumentsPage() {
         </h2>
         {documents && documents.length > 0 ? (
           documents.map((doc) => (
-            <DocumentCard key={doc.id} doc={doc} priceChanges={priceChangesFor(doc)} />
+            <DocumentCard
+              key={doc.id}
+              doc={doc}
+              supplierName={doc.supplier_id ? (supplierNames.get(doc.supplier_id) ?? null) : null}
+              priceChanges={priceChangesFor(doc)}
+            />
           ))
         ) : (
           <p className="rounded-lg border border-dashed border-neutral-200 p-6 text-center text-sm text-neutral-400">
