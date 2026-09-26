@@ -62,12 +62,6 @@ export default async function ReviewPage({ params }: { params: { id: string } })
 
   return (
     <div className="min-h-screen p-6">
-      <p className="mb-4 text-sm">
-        <Link href="/documents" className="text-neutral-500 hover:underline">
-          ← Invoices
-        </Link>
-      </p>
-
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         {/* ── Left: the original ───────────────────────── */}
         <section className="lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)]">

@@ -8,7 +8,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { loadSupplierData, linesFor } from "@/lib/suppliers/load";
 import { summariseSupplier } from "@/lib/suppliers/summary";
-import { comparePrices, alertColour } from "@/lib/prices/compare";
+import { latestInvoiceRises } from "@/lib/suppliers/rises";
 import { formatGBP, formatDate, ALERT_TEXT_CLASSES } from "@/lib/format";
 import { DeliveryCell } from "@/components/DeliveryCell";
 
@@ -23,18 +23,8 @@ export default async function SuppliersPage() {
       const allLines = linesFor(docs, linesByDoc);
       const summary = summariseSupplier(docs, allLines);
 
-      // Price rises on their LATEST invoice only — "did this week's delivery go up?".
-      // Older invoices' rises are old news; the documents page shows those per card.
-      let red = 0;
-      let amber = 0;
-      const latest = docs[0];
-      if (latest) {
-        for (const r of comparePrices(linesByDoc.get(latest.id) ?? [], allLines)) {
-          const colour = alertColour(r);
-          if (colour === "red") red += 1;
-          if (colour === "amber") amber += 1;
-        }
-      }
+      // Price rises on their LATEST invoice only — shared with the dashboard card.
+      const { red, amber } = latestInvoiceRises(docs, linesByDoc);
 
       return { supplier, summary, red, amber };
     })
@@ -53,12 +43,7 @@ export default async function SuppliersPage() {
   return (
     <div className="min-h-screen p-8">
       <header className="mb-8">
-        <p className="text-sm">
-          <Link href="/" className="text-neutral-500 hover:underline">
-            ← Dashboard
-          </Link>
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold">Suppliers</h1>
+        <h1 className="text-2xl font-semibold">Suppliers</h1>
         <p className="text-sm text-neutral-500">
           Based on unconfirmed invoice lines — figures can change as invoices are reviewed.
         </p>
