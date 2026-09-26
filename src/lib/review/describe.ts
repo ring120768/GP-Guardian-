@@ -27,7 +27,14 @@ export type DescribeLine = Pick<
   | "total_price"
 >;
 
-const UNIT_SUFFIX: Record<PackUnit, string> = { g: "g", kg: "kg", ml: "ml", l: "l", unit: " each" };
+// Display only — the database keeps "l". Capital L because "20l" reads as "201".
+const UNIT_SUFFIX: Record<PackUnit, string> = {
+  g: "g",
+  kg: "kg",
+  ml: "ml",
+  l: "L",
+  unit: " each",
+};
 
 const num = (n: number | null) => (n === null ? "?" : String(n));
 const money = (n: number | null) => (n === null ? "?" : formatGBP(n));
@@ -40,11 +47,18 @@ function weightText(line: DescribeLine): string | null {
   return `${amount}${UNIT_SUFFIX[line.unit]}`;
 }
 
-/** "10 × 150–175g", "5kg", "12 × ?" (count known, weight not), or null if neither printed. */
+/**
+ * "10 × 150–175g", "5kg", "180 each", "12 × ?" (count known, weight missing), or null if
+ * neither printed.
+ */
 function packText(line: DescribeLine): string | null {
   const weight = weightText(line);
-  if (line.pack_count !== null && line.pack_count > 1)
+  if (line.pack_count !== null && line.pack_count > 1) {
+    // Count items (eggs, blue roll) have no weight to be missing — "180 each" is the
+    // whole story. Only a weighed product's absent weight is a real gap worth a "?".
+    if (weight === null && line.unit === "unit") return `${line.pack_count} each`;
     return `${line.pack_count} × ${weight ?? "?"}`;
+  }
   return weight;
 }
 
