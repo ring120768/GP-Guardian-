@@ -141,6 +141,19 @@ describe("buildInvoiceLineRows", () => {
     expect(linesDisregarded).toBe(2);
   });
 
+  it("numbers lines by their position on the invoice, gaps included", () => {
+    const doc = invoice([
+      extractedLine({ product_name_raw: "BUTTER" }),
+      extractedLine({ confidence: "unreadable" }), // line 2 — not saved
+      extractedLine({ product_name_raw: "CREAM" }),
+    ]);
+    const { rows } = buildInvoiceLineRows(doc, CTX);
+    expect(rows.map((r) => [r.product_name_raw, r.line_no])).toEqual([
+      ["BUTTER", 1],
+      ["CREAM", 3],
+    ]);
+  });
+
   it("carries price_basis, qty_ordered and the supplier's status label onto the row", () => {
     const doc = invoice([
       extractedLine({

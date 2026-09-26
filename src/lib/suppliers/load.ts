@@ -56,6 +56,10 @@ export async function loadSupplierData(supabase: SupabaseClient<Database>): Prom
       .select(
         "document_id, supplier_id, product_name_raw, price_basis, unit, pack_count, unit_weight_min, unit_weight_max, unit_price, total_price, extraction_status, invoice_number, invoice_date"
       )
+      // Invoice order (see the review page) — keeps "first/latest line" picks stable.
+      .order("line_no", { ascending: true, nullsFirst: false })
+      .order("created_at")
+      .order("id")
       .returns<SupplierLine[]>(),
   ]);
 

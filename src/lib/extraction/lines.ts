@@ -113,6 +113,7 @@ export interface InvoiceLineRow {
   venue_id: string;
   document_id: string;
   supplier_id: string | null;
+  line_no: number;
   product_name_raw: string;
   pack_count: number | null;
   qty_ordered: number | null;
@@ -147,7 +148,7 @@ export function buildInvoiceLineRows(
   const rows: InvoiceLineRow[] = [];
   let linesDisregarded = 0;
 
-  for (const rawLine of invoice.lines) {
+  for (const [index, rawLine] of invoice.lines.entries()) {
     const checked = validateExtractedLine(rawLine);
     if (checked === null) {
       linesDisregarded += 1; // counted honestly, never guessed at
@@ -166,6 +167,9 @@ export function buildInvoiceLineRows(
       // Every line carries the supplier too, so price comparisons can query lines
       // directly without joining back through documents.
       supplier_id: ctx.supplierId ?? null,
+      // Position on the PAPER invoice, counted before disregarding anything. So if line
+      // 2 was unreadable, the saved lines are 1, 3, 4 — the gap shows where it was.
+      line_no: index + 1,
       product_name_raw: line.product_name_raw,
       pack_count: line.pack_count,
       qty_ordered: line.qty_ordered,

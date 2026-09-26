@@ -119,6 +119,8 @@ export interface InvoiceLine {
   venue_id: string;
   document_id: string;
   supplier_id: string | null;
+  /** Position on the paper invoice (1, 2, 3…). Null on lines read before 0006. */
+  line_no: number | null;
   supplier_product_id: string | null;
   ingredient_id: string | null;
   product_name_raw: string;
