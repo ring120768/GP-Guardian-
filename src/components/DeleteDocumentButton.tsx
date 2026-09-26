@@ -4,8 +4,8 @@
 //
 // Two-step, inline — no browser confirm() popup. First click swaps the link for a
 // sentence spelling out what will be lost, with [Delete] [Cancel]. Only the second
-// click actually calls the API. On success, router.refresh() re-renders the list
-// from the server and the card is simply gone.
+// click actually calls the API. On success, onDeleted() hides the card straight away,
+// then router.refresh() re-syncs the list (and counts) from the server.
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -13,9 +13,13 @@ import { useRouter } from "next/navigation";
 interface DeleteDocumentButtonProps {
   documentId: string;
   lineCount: number;
+  onDeleted: () => void;
 }
 
-export function DeleteDocumentButton({ documentId, lineCount }: DeleteDocumentButtonProps) {
+// If the dev server / API hangs, don't leave the chef staring at "Deleting…" forever.
+const TIMEOUT_MS = 15_000;
+
+export function DeleteDocumentButton({ documentId, lineCount, onDeleted }: DeleteDocumentButtonProps) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -24,18 +28,33 @@ export function DeleteDocumentButton({ documentId, lineCount }: DeleteDocumentBu
   async function remove() {
     setBusy(true);
     setError(null);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
-      const res = await fetch(`/api/documents/${documentId}`, { method: "DELETE" });
+      const res = await fetch(`/api/documents/${documentId}`, {
+        method: "DELETE",
+        signal: controller.signal,
+      });
       const body = await res.json();
       if (!res.ok || !body.ok) {
         throw new Error(body.error ?? "Couldn't delete this invoice.");
       }
+      // Hide first, refresh second — the refresh can take a moment and the chef
+      // shouldn't see a card they've just deleted sitting there in the meantime.
+      // No setBusy(false): this component is about to unmount.
+      onDeleted();
       router.refresh();
-      // No setBusy(false) on success — the card is about to disappear, and flicking
-      // the buttons back to enabled in the meantime would invite a double-click.
     } catch (err) {
-      setError((err as Error).message);
+      // "Nothing was deleted" is true from where we stand: we never got a success
+      // back, so the refresh after a retry will show the real state either way.
+      setError(
+        (err as Error).name === "AbortError"
+          ? "No response from the server — nothing was deleted. Check the dev server and try again."
+          : (err as Error).message,
+      );
       setBusy(false);
+    } finally {
+      clearTimeout(timer);
     }
   }
 
