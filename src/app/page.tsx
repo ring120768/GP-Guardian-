@@ -9,6 +9,8 @@ import { createClient } from "@/lib/supabase/server";
 import { loadSupplierData } from "@/lib/suppliers/load";
 import { latestInvoiceRises } from "@/lib/suppliers/rises";
 import { ALERT_TEXT_CLASSES } from "@/lib/format";
+import { loadMatchQueue } from "@/lib/matching/loadQueue";
+import { queueKey } from "@/lib/matching/queue";
 import type { DocumentRow } from "@/types/database";
 
 export default async function DashboardPage() {
@@ -20,6 +22,7 @@ export default async function DashboardPage() {
     },
     toReviewRes,
     supplierData,
+    matchQueue,
   ] = await Promise.all([
     supabase.auth.getUser(),
     // "To review" = the machine has read it, the chef hasn't signed it off.
@@ -31,6 +34,8 @@ export default async function DashboardPage() {
       .neq("review_status", "confirmed")
       .returns<Pick<DocumentRow, "lines_extracted" | "lines_verified">[]>(),
     loadSupplierData(supabase),
+    // The exact query behind the nav badge, so the card and the badge can't disagree.
+    loadMatchQueue(supabase),
   ]);
 
   // A failed query must not show "All caught up ✓" — that would be a lie.
@@ -48,6 +53,16 @@ export default async function DashboardPage() {
     red += counts.red;
     amber += counts.amber;
   }
+
+  // Products = distinct (supplier, product name) across ALL invoice lines — the same key
+  // the match queue groups by, so "X of Y" counts the same things the queue does.
+  // loadSupplierData already has every line, so this costs no extra query.
+  const allLines = Array.from(supplierData.linesByDoc.values()).flat();
+  const totalProducts = new Set(allLines.map((l) => queueKey(l.supplier_id, l.product_name_raw)))
+    .size;
+  const toMatch = matchQueue.length;
+  // Two separate reads, so clamp: a line read between them must never show "-1 matched".
+  const matchedProducts = Math.max(0, totalProducts - toMatch);
 
   return (
     <div className="min-h-screen p-8">
@@ -95,7 +110,33 @@ export default async function DashboardPage() {
         </LiveCard>
 
         <GreyCard title="Dishes below target GP" note="Set up recipes to see this" />
-        <GreyCard title="Ingredients matched" note="Coming with ingredient matching" />
+        {totalProducts === 0 ? (
+          // No invoice lines at all: "All matched ✓" would be true but meaningless.
+          <LiveCard title="Ingredients matched" href="/documents">
+            <p className="mt-2 text-xl font-semibold text-neutral-500">Nothing to match yet</p>
+            <p className="mt-1 text-xs text-neutral-500">Upload an invoice to start</p>
+          </LiveCard>
+        ) : toMatch === 0 ? (
+          <LiveCard title="Ingredients matched" href="/ingredients">
+            <p className="mt-2 text-xl font-semibold text-emerald-700">All matched ✓</p>
+            <p className="mt-1 text-xs text-neutral-500">
+              {totalProducts} of {totalProducts} {totalProducts === 1 ? "product" : "products"}{" "}
+              matched
+            </p>
+          </LiveCard>
+        ) : (
+          <LiveCard title="Ingredients matched" href="/ingredients/match">
+            {/* "to match" beside the number: under a card titled "Ingredients matched",
+                a bare "3" would read as "3 matched". */}
+            <p className="mt-2 text-3xl font-semibold">
+              {toMatch} <span className="text-sm font-medium text-neutral-500">to match</span>
+            </p>
+            <p className="mt-1 text-xs text-neutral-500">
+              {matchedProducts} of {totalProducts} {totalProducts === 1 ? "product" : "products"}{" "}
+              matched
+            </p>
+          </LiveCard>
+        )}
       </section>
     </div>
   );
