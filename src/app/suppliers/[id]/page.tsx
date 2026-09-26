@@ -77,7 +77,10 @@ export default async function SupplierPage({ params }: { params: { id: string } 
         <Stat label="Invoices">
           {summary.invoiceCount}
           <span className="block text-xs text-neutral-500">
-            {formatDate(summary.firstInvoiceDate)} – {formatDate(summary.lastInvoiceDate)}
+            {/* One invoice (or all on one day) → one date, not "17/09/2026 – 17/09/2026". */}
+            {summary.firstInvoiceDate === summary.lastInvoiceDate
+              ? formatDate(summary.firstInvoiceDate)
+              : `${formatDate(summary.firstInvoiceDate)} – ${formatDate(summary.lastInvoiceDate)}`}
           </span>
         </Stat>
         <Stat label="Goods (net)">
@@ -197,7 +200,7 @@ function ChangeCell({ comparison: c }: { comparison: PriceComparison }) {
     case "pack_changed":
       return <span className="text-neutral-500">pack size changed</span>;
     case "new":
-      return <span className="text-neutral-400">first seen</span>;
+      return <span className="text-neutral-400">New</span>;
     case "skipped":
       return <span className="text-neutral-400">—</span>;
   }

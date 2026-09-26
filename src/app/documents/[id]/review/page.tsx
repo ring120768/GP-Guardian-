@@ -13,6 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 import { STORAGE_BUCKET } from "@/lib/documents/upload";
 import { extractionPercent, verifiedPercent } from "@/lib/documents/health";
 import { ReviewLines } from "@/components/ReviewLines";
+import { InvoiceViewer } from "@/components/InvoiceViewer";
 import { formatDate, formatGBP } from "@/lib/format";
 import type { DocumentRow, InvoiceLine, Supplier } from "@/types/database";
 
@@ -34,10 +35,12 @@ export default async function ReviewPage({ params }: { params: { id: string } })
       .from("invoice_lines")
       .select("*")
       .eq("document_id", doc.id)
-      // ponytail: lines are batch-inserted with the same created_at, so within one
-      // invoice this relies on Postgres returning them in insert order — true in
-      // practice, not guaranteed. A line_number column would make it exact.
+      // Invoice order: line_no (paper position), then created_at + id for lines read
+      // before line_no existed. None of these change on edit/confirm, so a line never
+      // jumps around when the chef confirms it.
+      .order("line_no", { ascending: true, nullsFirst: false })
       .order("created_at")
+      .order("id")
       .returns<InvoiceLine[]>(),
     doc.supplier_id
       ? supabase
@@ -64,27 +67,16 @@ export default async function ReviewPage({ params }: { params: { id: string } })
     <div className="min-h-screen p-6">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
         {/* ── Left: the original ───────────────────────── */}
-        <section className="lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)]">
+        {/* Sticky on wide screens: the original stays in view while the chef scrolls
+            the lines. Height = viewport minus the page padding. */}
+        <section className="lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)] lg:self-start">
           {!fileUrl ? (
             <p className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
               Couldn&apos;t open the original file
               {signedRes.error ? `: ${signedRes.error.message}` : "."}
             </p>
-          ) : doc.source_format === "pdf" ? (
-            <iframe
-              src={fileUrl}
-              title="Original invoice"
-              className="h-[80vh] w-full rounded-lg border border-neutral-200 lg:h-full"
-            />
           ) : (
-            // Plain <img>, not next/image: a signed URL changes every visit and expires,
-            // so there's nothing for Next's image optimiser to cache.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={fileUrl}
-              alt="Original invoice"
-              className="max-h-full w-full rounded-lg border border-neutral-200 object-contain"
-            />
+            <InvoiceViewer url={fileUrl} isPdf={doc.source_format === "pdf"} />
           )}
         </section>
 
