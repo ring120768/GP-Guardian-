@@ -39,7 +39,7 @@ export function DocumentCard({
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-neutral-800">
-            {doc.invoice_number ? `Invoice ${doc.invoice_number}` : "Untitled document"}
+            {doc.invoice_number ? `Invoice ${doc.invoice_number}` : "Untitled invoice"}
             <span className="ml-2 text-xs font-normal uppercase tracking-wide text-neutral-400">
               {doc.source_format}
             </span>

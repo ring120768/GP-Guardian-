@@ -5,7 +5,6 @@
 // client component. This is the standard App Router split — data on the server,
 // interactivity on the client.
 
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { DocumentUploader } from "@/components/DocumentUploader";
 import { DocumentCard } from "@/components/DocumentCard";
@@ -62,6 +61,11 @@ export default async function DocumentsPage() {
     }
   }
 
+  // Work still to do at the top: unconfirmed first, then confirmed. The query already
+  // returns newest first, and JS sort is stable, so each group stays newest first.
+  const isConfirmed = (d: DocumentRow) => (d.review_status === "confirmed" ? 1 : 0);
+  const sorted = [...(documents ?? [])].sort((a, b) => isConfirmed(a) - isConfirmed(b));
+
   function priceChangesFor(doc: DocumentRow): PriceComparison[] {
     if (!doc.supplier_id) return []; // no supplier → nothing to compare against
     return comparePrices(
@@ -73,16 +77,7 @@ export default async function DocumentsPage() {
   return (
     <div className="min-h-screen p-8">
       <header className="mb-8">
-        <p className="text-sm">
-          <Link href="/" className="text-neutral-500 hover:underline">
-            ← Dashboard
-          </Link>
-          {" · "}
-          <Link href="/suppliers" className="text-neutral-500 hover:underline">
-            Suppliers
-          </Link>
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold">Invoices</h1>
+        <h1 className="text-2xl font-semibold">Invoices</h1>
         <p className="text-sm text-neutral-500">
           Upload supplier invoices — photos or PDFs. The chef confirms; nothing is
           finalised automatically.
@@ -90,7 +85,8 @@ export default async function DocumentsPage() {
       </header>
 
       {venue ? (
-        <section className="mb-10 max-w-2xl">
+        // id="upload" is the target of the nav bar's Upload button (/documents#upload).
+        <section id="upload" className="mb-10 max-w-2xl">
           <DocumentUploader venueId={venue.id} documentType="invoice" />
         </section>
       ) : (
@@ -102,10 +98,10 @@ export default async function DocumentsPage() {
 
       <section className="max-w-2xl space-y-2">
         <h2 className="text-sm font-medium text-neutral-500">
-          Uploaded ({documents?.length ?? 0})
+          Uploaded ({sorted.length})
         </h2>
-        {documents && documents.length > 0 ? (
-          documents.map((doc) => (
+        {sorted.length > 0 ? (
+          sorted.map((doc) => (
             <DocumentCard
               key={doc.id}
               doc={doc}

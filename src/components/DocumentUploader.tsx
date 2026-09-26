@@ -114,6 +114,8 @@ export function DocumentUploader({
   }, [items, venueId, documentType, router]);
 
   const queuedCount = items.filter((it) => it.status === "queued").length;
+  // The chef calls them invoices, not "documents" — say what they're uploading.
+  const noun = documentType === "invoice" ? "invoice" : "document";
 
   return (
     <div className="space-y-4">
@@ -193,7 +195,7 @@ export function DocumentUploader({
         >
           {isUploading
             ? "Uploading…"
-            : `Upload ${queuedCount} ${queuedCount === 1 ? "document" : "documents"}`}
+            : `Upload ${queuedCount} ${queuedCount === 1 ? noun : `${noun}s`}`}
         </button>
       )}
     </div>

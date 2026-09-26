@@ -4,7 +4,6 @@
 // Server component. The [id] folder name makes this a dynamic route — /suppliers/abc
 // arrives here with params.id === "abc".
 
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { loadSupplierData, linesFor, type SupplierLine } from "@/lib/suppliers/load";
@@ -67,12 +66,7 @@ export default async function SupplierPage({ params }: { params: { id: string } 
   return (
     <div className="min-h-screen p-8">
       <header className="mb-6">
-        <p className="text-sm">
-          <Link href="/suppliers" className="text-neutral-500 hover:underline">
-            ← Suppliers
-          </Link>
-        </p>
-        <h1 className="mt-2 text-2xl font-semibold">{supplier.name}</h1>
+        <h1 className="text-2xl font-semibold">{supplier.name}</h1>
         <p className="text-sm text-neutral-500">
           Based on unconfirmed invoice lines — figures can change as invoices are reviewed.
         </p>
