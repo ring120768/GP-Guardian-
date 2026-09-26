@@ -21,7 +21,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, DocumentRow } from "@/types/database";
 import { STORAGE_BUCKET } from "@/lib/documents/upload";
 import { extractInvoice } from "./extract";
-import { confidenceToExtractionStatus } from "./schema";
+import { buildInvoiceLineRows, type InvoiceLineRow } from "./lines";
 
 type Supabase = SupabaseClient<Database>;
 
@@ -89,45 +89,18 @@ export async function runExtraction(
     });
 
     // ── Write invoice_lines (never finalised) ────────────────
-    // Build rows only for readable lines; unreadable ones are disregarded (design doc §6).
-    let linesDisregarded = 0;
-    const rows = invoice.lines.flatMap((line) => {
-      const extractionStatus = confidenceToExtractionStatus(line.confidence);
-      if (extractionStatus === null) {
-        linesDisregarded += 1;
-        return []; // unreadable → skip, count it, never guess its numbers
-      }
-      return [
-        {
-          venue_id: doc.venue_id,
-          document_id: doc.id,
-          product_name_raw: line.product_name_raw,
-          pack_count: line.pack_count,
-          unit_weight_min: line.unit_weight_min,
-          unit_weight_max: line.unit_weight_max,
-          unit: line.unit,
-          unit_price: line.unit_price,
-          total_price: line.total_price,
-          invoice_number: invoice.invoice_number,
-          invoice_date: invoice.invoice_date,
-          extraction_status: extractionStatus,
-          // NOT matched to an ingredient and NOT finalised — the alias-matching slice
-          // (design doc §3) and the review/confirm UI come next. Every line starts life
-          // as "unmatched", waiting for a human. This is principle #2 made concrete.
-          match_confidence: "unmatched" as const,
-          // is_estimated defaults true in the schema; costing recalculates it later.
-        },
-      ];
-    });
+    // Every line is validated on its own first (see lines.ts). A line we can't store
+    // cleanly is stored flagged, or disregarded and counted — but it can no longer take
+    // the rest of the invoice down with it.
+    const { rows, linesDisregarded: disregardedByValidation } = buildInvoiceLineRows(
+      invoice,
+      { venueId: doc.venue_id, documentId: doc.id }
+    );
 
-    if (rows.length > 0) {
-      const { error: insertError } = await supabase.from("invoice_lines").insert(rows);
-      if (insertError) {
-        throw new Error(`Extracted the invoice but couldn't save the lines: ${insertError.message}`);
-      }
-    }
+    const { saved, rejected } = await insertLines(supabase, rows);
+    const linesDisregarded = disregardedByValidation + rejected;
 
-    const linesExtracted = rows.length;
+    const linesExtracted = saved;
     // lines_detected is the AI's honest count of what it could see — but never let it
     // be less than what we actually stored + disregarded, so the maths can't go silly.
     const linesDetected = Math.max(
@@ -147,6 +120,11 @@ export async function runExtraction(
         lines_extracted: linesExtracted,
         lines_disregarded: linesDisregarded,
         lines_verified: 0, // nobody's confirmed anything yet — that's the review queue
+        // Invoice-level charges (delivery, fuel surcharge…) live on the document, not as
+        // product lines — otherwise "DELIVERY" turns up in the chef's matching queue
+        // every week. They still count toward the invoice total.
+        delivery_charge: invoice.delivery_charge,
+        other_charges: invoice.other_charges,
         // Supplier matching (creating/linking a suppliers row from invoice.supplier_name)
         // is its own slice — left null for now rather than half-built.
       })
@@ -163,6 +141,47 @@ export async function runExtraction(
       .eq("id", documentId);
     throw err; // let the route handler report it too
   }
+}
+
+/**
+ * Insert the validated rows, and make damn sure one unforeseen bad value can't cost us
+ * the whole invoice.
+ *
+ * Fast path: one batch insert (a single round trip — what we want 99% of the time).
+ * Slow path: if that batch is rejected, retry the rows ONE AT A TIME so we keep every
+ * line the database is willing to accept and only lose the genuinely broken ones.
+ *
+ * lines.ts already screens out the failure we know about (the INV-04 non-integer
+ * pack_count). This is the safety net for the ones we haven't met yet — a new NOT NULL
+ * column, a check constraint we forget to mirror in the validator. Cheap insurance:
+ * it only costs extra round trips on an invoice that was already in trouble.
+ */
+async function insertLines(
+  supabase: Supabase,
+  rows: InvoiceLineRow[]
+): Promise<{ saved: number; rejected: number }> {
+  if (rows.length === 0) return { saved: 0, rejected: 0 };
+
+  const batch = await supabase.from("invoice_lines").insert(rows);
+  if (!batch.error) return { saved: rows.length, rejected: 0 };
+
+  let saved = 0;
+  let rejected = 0;
+  for (const row of rows) {
+    const one = await supabase.from("invoice_lines").insert([row]);
+    if (one.error) rejected += 1;
+    else saved += 1;
+  }
+
+  // Every single row failed → this isn't a bad line, it's a broken table or a broken
+  // connection. Surface it rather than reporting a cheerfully empty invoice.
+  if (saved === 0) {
+    throw new Error(
+      `Read the invoice but couldn't save any of its lines: ${batch.error.message}`
+    );
+  }
+
+  return { saved, rejected };
 }
 
 /**

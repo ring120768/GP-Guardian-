@@ -25,7 +25,7 @@ import type { SourceFormat } from "@/types/database";
 // multi-page PDF. We don't downgrade for cost here: misreading an invoice is far more
 // expensive than the tokens. (If cost ever bites, Haiku is the lever — but that's a
 // deliberate call to make later, not a default.)
-const MODEL = "claude-opus-4-8";
+const MODEL = "claude-sonnet-5";
 
 // Media type Anthropic expects for a photo, from our stored source_format + the file's
 // own type. We validated the upload down to jpeg/png/webp/pdf, so this stays small.

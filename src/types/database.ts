@@ -6,6 +6,10 @@ export type Unit = "g" | "ml" | "unit";
 export type PackUnit = "g" | "kg" | "ml" | "l" | "unit";
 export type MatchConfidence = "high" | "medium" | "low" | "unmatched";
 export type ExtractionStatus = "extracted" | "low_confidence" | "unreadable";
+// What an invoice line's unit_price is PER. Nullable in the DB: "£7.95 kg 3.42" (per kg)
+// and "£38.75 kg 5" (per 5kg pack) look almost identical on paper, so when the layout
+// genuinely doesn't say we record an honest gap rather than a 3-5x costing error.
+export type PriceBasis = "per_pack" | "per_kg" | "per_litre" | "per_unit";
 export type DocumentType = "invoice" | "recipe" | "menu";
 export type SourceFormat = "photo" | "pdf";
 
@@ -19,6 +23,12 @@ export type SourceFormat = "photo" | "pdf";
 // Extraction % vs Verified % split (§6).
 export type ProcessingStatus = "uploaded" | "extracting" | "extracted" | "failed";
 export type ReviewStatus = "pending" | "in_review" | "confirmed";
+
+/** One non-product charge on an invoice — fuel surcharge, small-order fee, crate deposit. */
+export interface OtherCharge {
+  label: string; // as printed on the invoice
+  amount: number; // negative for a discount/credit
+}
 
 export interface Venue {
   id: string;
@@ -89,6 +99,13 @@ export interface DocumentRow {
   lines_extracted: number;
   lines_disregarded: number;
   lines_verified: number;
+  /**
+   * Invoice-level charges. Delivery and surcharges are real money in the invoice total
+   * but they aren't ingredients — as product lines they'd appear as an unmatchable
+   * "DELIVERY" in the review queue every week, so they live here instead.
+   */
+  delivery_charge: number | null;
+  other_charges: OtherCharge[];
   processing_status: ProcessingStatus;
   extraction_error: string | null;
   review_status: ReviewStatus;
@@ -103,12 +120,23 @@ export interface InvoiceLine {
   supplier_product_id: string | null;
   ingredient_id: string | null;
   product_name_raw: string;
+  /** Units per pack. Postgres `integer` — a catch weight in here is what lost INV-04. */
   pack_count: number | null;
+  /** How many ordered. Negative = credit, 0 = short/not delivered, null = not printed. */
+  qty_ordered: number | null;
   unit_weight_min: number | null;
   unit_weight_max: number | null;
   unit: PackUnit;
   unit_price: number | null;
   total_price: number | null;
+  /** What unit_price is per. Null when the invoice genuinely doesn't say. */
+  price_basis: PriceBasis | null;
+  /**
+   * Supplier's label against the line ("SHORT", "CREDIT"), kept out of
+   * product_name_raw so ingredient matching still works. Also carries our own repair
+   * notes, so a field we had to null doesn't look like one that was never printed.
+   */
+  status_note: string | null;
   invoice_number: string | null;
   invoice_date: string | null;
   is_estimated: boolean;
