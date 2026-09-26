@@ -59,7 +59,9 @@ function MatchRow({ row, ingredients }: { row: MatchRowData; ingredients: Ingred
   const router = useRouter();
   const [mode, setMode] = useState<"idle" | "choose" | "new">("idle");
   const [search, setSearch] = useState("");
-  // New-ingredient form, pre-filled from the product: "chix supreme" → "Chix supreme".
+  // New-ingredient form, pre-filled from the product in sentence case:
+  // "CHIX SUPREME SKIN-ON 150-175G" → "Chix supreme skin-on". Supplier shorthand ("chix")
+  // is left as-is on purpose — only the chef knows what it should say.
   const [newName, setNewName] = useState(
     row.matchName.charAt(0).toUpperCase() + row.matchName.slice(1)
   );
@@ -218,9 +220,14 @@ function MatchRow({ row, ingredients }: { row: MatchRowData; ingredients: Ingred
           }}
         >
           <label className="flex-1">
-            <span className="mb-0.5 block text-xs text-neutral-500">Name</span>
+            <span className="mb-0.5 block text-xs text-neutral-500">
+              Name <span className="text-neutral-400">— tidy up the supplier&apos;s wording</span>
+            </span>
+            {/* Focused with the text selected: it's obviously editable, typing replaces
+                it, and one click puts the cursor in to fix just the "chix". */}
             <input
               autoFocus
+              onFocus={(e) => e.currentTarget.select()}
               className={`${input} w-full`}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
