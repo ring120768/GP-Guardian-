@@ -64,7 +64,7 @@ export function normaliseProductName(name: string): string {
  *   • negative total    — a credit/return, not a purchase price
  *   • 'unreadable'      — the AI said it couldn't read it
  */
-function isUncomparable(line: PriceLine): boolean {
+export function isUncomparable(line: PriceLine): boolean {
   return (
     line.unit_price === null ||
     (line.total_price !== null && line.total_price < 0) ||
