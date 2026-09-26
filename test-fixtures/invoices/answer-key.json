@@ -1,0 +1,447 @@
+{
+  "_readme": "Correct extraction for each test invoice, in the same shape as ExtractedInvoiceSchema (src/lib/extraction/schema.ts). Extra fields (qty_ordered, vat, note, accept_unreadable) are for human scoring only.",
+  "invoices": [
+    {
+      "file": "INV-01_fenland-butchery_clean.pdf",
+      "difficulty": "Easy: clean PDF. Tests weight ranges, catch-weight \u00a3/kg lines, and qty > 1.",
+      "expected": {
+        "supplier_name": "Fenland Butchery Supplies Ltd",
+        "invoice_number": "FB-20814",
+        "invoice_date": "2026-09-14",
+        "lines_detected": 6,
+        "lines": [
+          {
+            "product_name_raw": "CHIX SUPREME SKIN-ON 150-175G",
+            "pack_count": 10,
+            "unit_weight_min": 150,
+            "unit_weight_max": 175,
+            "unit": "g",
+            "unit_price": 16.8,
+            "total_price": 33.6,
+            "qty_ordered": 2,
+            "vat": "Z"
+          },
+          {
+            "product_name_raw": "BEEF MINCE 15% FAT",
+            "pack_count": 1,
+            "unit_weight_min": 5,
+            "unit_weight_max": 5,
+            "unit": "kg",
+            "unit_price": 38.75,
+            "total_price": 38.75,
+            "qty_ordered": 1,
+            "vat": "Z"
+          },
+          {
+            "product_name_raw": "PORK BELLY BONELESS",
+            "pack_count": null,
+            "unit_weight_min": 3.42,
+            "unit_weight_max": 3.42,
+            "unit": "kg",
+            "unit_price": 7.95,
+            "total_price": 27.19,
+            "qty_ordered": "3.42kg",
+            "vat": "Z",
+            "note": "Catch weight: price is \u00a3/kg, total = 3.42 \u00d7 7.95."
+          },
+          {
+            "product_name_raw": "LAMB RUMP CAP-OFF 200-225G",
+            "pack_count": 8,
+            "unit_weight_min": 200,
+            "unit_weight_max": 225,
+            "unit": "g",
+            "unit_price": 42.4,
+            "total_price": 42.4,
+            "qty_ordered": 1,
+            "vat": "Z"
+          },
+          {
+            "product_name_raw": "SMOKED STREAKY BACON",
+            "pack_count": 1,
+            "unit_weight_min": 1,
+            "unit_weight_max": 1,
+            "unit": "kg",
+            "unit_price": 9.2,
+            "total_price": 27.6,
+            "qty_ordered": 3,
+            "vat": "Z"
+          },
+          {
+            "product_name_raw": "BEEF SHORT RIB BONE-IN",
+            "pack_count": null,
+            "unit_weight_min": 2.18,
+            "unit_weight_max": 2.18,
+            "unit": "kg",
+            "unit_price": 12.5,
+            "total_price": 27.25,
+            "qty_ordered": "2.18kg",
+            "vat": "Z",
+            "note": "Catch weight."
+          }
+        ]
+      },
+      "not_product_lines": [],
+      "invoice_totals": {
+        "goods": 196.79,
+        "delivery": 0.0,
+        "vat": 0.0,
+        "total": 196.79
+      }
+    },
+    {
+      "file": "INV-02_cam-valley-produce_photo.jpg",
+      "difficulty": "Medium: phone photo, slight skew and shadow. Countable items, a SHORT (not delivered) line at \u00a30.",
+      "expected": {
+        "supplier_name": "Cam Valley Produce",
+        "invoice_number": "CVP-55190",
+        "invoice_date": "2026-09-15",
+        "lines_detected": 7,
+        "lines": [
+          {
+            "product_name_raw": "ICEBERG LETTUCE",
+            "pack_count": 12,
+            "unit_weight_min": null,
+            "unit_weight_max": null,
+            "unit": "unit",
+            "unit_price": 9.5,
+            "total_price": 9.5,
+            "qty_ordered": 1,
+            "vat": "Z"
+          },
+          {
+            "product_name_raw": "VINE TOMATOES CLASS 1",
+            "pack_count": 1,
+            "unit_weight_min": 6,
+            "unit_weight_max": 6,
+            "unit": "kg",
+            "unit_price": 11.4,
+            "total_price": 11.4,
+            "qty_ordered": 1,
+            "vat": "Z"
+          },
+          {
+            "product_name_raw": "POTATOES MARIS PIPER WHITE",
+            "pack_count": 1,
+            "unit_weight_min": 25,
+            "unit_weight_max": 25,
+            "unit": "kg",
+            "unit_price": 14.0,
+            "total_price": 14.0,
+            "qty_ordered": 1,
+            "vat": "Z"
+          },
+          {
+            "product_name_raw": "ONIONS BROWN",
+            "pack_count": 1,
+            "unit_weight_min": 10,
+            "unit_weight_max": 10,
+            "unit": "kg",
+            "unit_price": 6.8,
+            "total_price": 13.6,
+            "qty_ordered": 2,
+            "vat": "Z"
+          },
+          {
+            "product_name_raw": "LEMONS UNWAXED",
+            "pack_count": 80,
+            "unit_weight_min": null,
+            "unit_weight_max": null,
+            "unit": "unit",
+            "unit_price": 12.9,
+            "total_price": 12.9,
+            "qty_ordered": 1,
+            "vat": "Z"
+          },
+          {
+            "product_name_raw": "PARSLEY FLAT LEAF",
+            "pack_count": 1,
+            "unit_weight_min": null,
+            "unit_weight_max": null,
+            "unit": "unit",
+            "unit_price": 0.85,
+            "total_price": 5.1,
+            "qty_ordered": 6,
+            "vat": "Z"
+          },
+          {
+            "product_name_raw": "AVOCADO HASS READY-TO-EAT",
+            "pack_count": 20,
+            "unit_weight_min": null,
+            "unit_weight_max": null,
+            "unit": "unit",
+            "unit_price": 16.0,
+            "total_price": 0.0,
+            "qty_ordered": 0,
+            "vat": "Z",
+            "note": "Not delivered (SHORT). Total must be 0.00 \u2014 must NOT be costed at \u00a316."
+          }
+        ]
+      },
+      "not_product_lines": [],
+      "invoice_totals": {
+        "goods": 66.5,
+        "delivery": 0.0,
+        "vat": 0.0,
+        "total": 66.5
+      }
+    },
+    {
+      "file": "INV-03_anglia-catering-wholesale_clean.pdf",
+      "difficulty": "Medium: clean PDF but mixed VAT, non-food lines, a delivery charge and a CREDIT line.",
+      "expected": {
+        "supplier_name": "Anglia Catering Wholesale",
+        "invoice_number": "ACW-331207",
+        "invoice_date": "2026-09-16",
+        "lines_detected": 7,
+        "lines": [
+          {
+            "product_name_raw": "DOUBLE CREAM",
+            "pack_count": 1,
+            "unit_weight_min": 2,
+            "unit_weight_max": 2,
+            "unit": "l",
+            "unit_price": 5.95,
+            "total_price": 23.8,
+            "qty_ordered": 4,
+            "vat": "Z"
+          },
+          {
+            "product_name_raw": "BUTTER UNSALTED BLOCK",
+            "pack_count": 10,
+            "unit_weight_min": 250,
+            "unit_weight_max": 250,
+            "unit": "g",
+            "unit_price": 21.5,
+            "total_price": 43.0,
+            "qty_ordered": 2,
+            "vat": "Z"
+          },
+          {
+            "product_name_raw": "FLOUR PLAIN",
+            "pack_count": 1,
+            "unit_weight_min": 16,
+            "unit_weight_max": 16,
+            "unit": "kg",
+            "unit_price": 11.25,
+            "total_price": 11.25,
+            "qty_ordered": 1,
+            "vat": "Z"
+          },
+          {
+            "product_name_raw": "RAPESEED OIL",
+            "pack_count": 1,
+            "unit_weight_min": 20,
+            "unit_weight_max": 20,
+            "unit": "l",
+            "unit_price": 32.99,
+            "total_price": 32.99,
+            "qty_ordered": 1,
+            "vat": "Z"
+          },
+          {
+            "product_name_raw": "CLING FILM 450MM X 300M",
+            "pack_count": 1,
+            "unit_weight_min": null,
+            "unit_weight_max": null,
+            "unit": "unit",
+            "unit_price": 8.49,
+            "total_price": 16.98,
+            "qty_ordered": 2,
+            "vat": "S",
+            "note": "Non-food, standard-rated. Real line, but should never be matched to an ingredient."
+          },
+          {
+            "product_name_raw": "BLUE ROLL 2PLY",
+            "pack_count": 6,
+            "unit_weight_min": null,
+            "unit_weight_max": null,
+            "unit": "unit",
+            "unit_price": 14.99,
+            "total_price": 14.99,
+            "qty_ordered": 1,
+            "vat": "S",
+            "note": "Non-food."
+          },
+          {
+            "product_name_raw": "CREDIT: EGGS FREE RANGE LARGE (DAMAGED)",
+            "pack_count": null,
+            "unit_weight_min": null,
+            "unit_weight_max": null,
+            "unit": "unit",
+            "unit_price": 18.6,
+            "total_price": -18.6,
+            "qty_ordered": -1,
+            "vat": "Z",
+            "note": "CREDIT line. Total should be -18.60 (negative). A reader that drops the minus sign overstates spend."
+          }
+        ]
+      },
+      "not_product_lines": [
+        "DELIVERY CHARGE \u00a37.50 \u2014 should NOT be extracted as a product line"
+      ],
+      "invoice_totals": {
+        "goods": 124.41,
+        "delivery": 7.5,
+        "vat": 7.89,
+        "total": 139.8
+      }
+    },
+    {
+      "file": "INV-04_north-sea-fish_photo-rough.jpg",
+      "difficulty": "Hard: creased, dim photo. Handwritten catch weights, a handwritten price correction, and a coffee stain over one price.",
+      "expected": {
+        "supplier_name": "North Sea Fish Co.",
+        "invoice_number": "NSF-9043",
+        "invoice_date": "2026-09-17",
+        "lines_detected": 6,
+        "lines": [
+          {
+            "product_name_raw": "HAKE FILLET SKIN-ON 180-200G",
+            "pack_count": null,
+            "unit_weight_min": 180,
+            "unit_weight_max": 200,
+            "unit": "g",
+            "unit_price": 2.35,
+            "total_price": 23.5,
+            "qty_ordered": 10,
+            "vat": "Z"
+          },
+          {
+            "product_name_raw": "SEA BASS WHOLE 400-600G",
+            "pack_count": null,
+            "unit_weight_min": 2.84,
+            "unit_weight_max": 2.84,
+            "unit": "kg",
+            "unit_price": 14.2,
+            "total_price": 40.33,
+            "qty_ordered": "2.84kg",
+            "vat": "Z",
+            "note": "Catch weight handwritten in the qty column."
+          },
+          {
+            "product_name_raw": "MUSSELS ROPE-GROWN",
+            "pack_count": 1,
+            "unit_weight_min": 5,
+            "unit_weight_max": 5,
+            "unit": "kg",
+            "unit_price": 17.5,
+            "total_price": 17.5,
+            "qty_ordered": 1,
+            "vat": "Z"
+          },
+          {
+            "product_name_raw": "SMOKED HADDOCK NATURAL",
+            "pack_count": null,
+            "unit_weight_min": 1.6,
+            "unit_weight_max": 1.6,
+            "unit": "kg",
+            "unit_price": 16.9,
+            "total_price": 27.04,
+            "qty_ordered": "1.6kg",
+            "vat": "Z",
+            "note": "Handwritten catch weight."
+          },
+          {
+            "product_name_raw": "KING PRAWNS RAW P&D 16/20",
+            "pack_count": 1,
+            "unit_weight_min": 1,
+            "unit_weight_max": 1,
+            "unit": "kg",
+            "unit_price": 19.8,
+            "total_price": 19.8,
+            "qty_ordered": 1,
+            "vat": "Z",
+            "note": "Coffee stain over unit price AND total. Correct behaviour: mark low/unreadable and leave prices null. Reading \u00a319.80 is fine only if genuinely legible; inventing a different number is a FAIL.",
+            "accept_unreadable": true
+          },
+          {
+            "product_name_raw": "SALMON SIDE SKIN-ON 1.2-1.4KG",
+            "pack_count": 1,
+            "unit_weight_min": 1.2,
+            "unit_weight_max": 1.4,
+            "unit": "kg",
+            "unit_price": 22.4,
+            "total_price": 44.8,
+            "qty_ordered": 2,
+            "vat": "Z",
+            "note": "Printed \u00a321.00 is crossed out; handwritten \u00a322.40 above it. Correct unit price = 22.40, total = 44.80 (handwritten)."
+          }
+        ]
+      },
+      "not_product_lines": [],
+      "invoice_totals": {
+        "goods": 172.97,
+        "delivery": 0.0,
+        "vat": 0.0,
+        "total": 172.97
+      }
+    },
+    {
+      "file": "INV-05_fenland-butchery_photo-price-rise.jpg",
+      "difficulty": "Medium: repeat supplier a week later with PRICE RISES \u2014 use later to test price-change alerts.",
+      "expected": {
+        "supplier_name": "Fenland Butchery Supplies Ltd",
+        "invoice_number": "FB-20877",
+        "invoice_date": "2026-09-21",
+        "lines_detected": 4,
+        "lines": [
+          {
+            "product_name_raw": "CHIX SUPREME SKIN-ON 150-175G",
+            "pack_count": 10,
+            "unit_weight_min": 150,
+            "unit_weight_max": 175,
+            "unit": "g",
+            "unit_price": 17.9,
+            "total_price": 35.8,
+            "qty_ordered": 2,
+            "vat": "Z",
+            "note": "Up from \u00a316.80 on FB-20814 (+6.5%)."
+          },
+          {
+            "product_name_raw": "PORK BELLY BONELESS",
+            "pack_count": null,
+            "unit_weight_min": 3.61,
+            "unit_weight_max": 3.61,
+            "unit": "kg",
+            "unit_price": 8.45,
+            "total_price": 30.5,
+            "qty_ordered": "3.61kg",
+            "vat": "Z",
+            "note": "Up from \u00a37.95/kg (+6.3%)."
+          },
+          {
+            "product_name_raw": "LAMB RUMP CAP-OFF 200-225G",
+            "pack_count": 8,
+            "unit_weight_min": 200,
+            "unit_weight_max": 225,
+            "unit": "g",
+            "unit_price": 42.4,
+            "total_price": 42.4,
+            "qty_ordered": 1,
+            "vat": "Z",
+            "note": "Unchanged."
+          },
+          {
+            "product_name_raw": "BEEF MINCE 15% FAT",
+            "pack_count": 1,
+            "unit_weight_min": 5,
+            "unit_weight_max": 5,
+            "unit": "kg",
+            "unit_price": 44.95,
+            "total_price": 89.9,
+            "qty_ordered": 2,
+            "vat": "Z",
+            "note": "Up from \u00a338.75 (+16%) \u2014 should trigger the >10% alert."
+          }
+        ]
+      },
+      "not_product_lines": [],
+      "invoice_totals": {
+        "goods": 198.6,
+        "delivery": 0.0,
+        "vat": 0.0,
+        "total": 198.6
+      }
+    }
+  ]
+}
