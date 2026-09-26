@@ -34,7 +34,7 @@ const UNITS: { value: PackUnit; label: string }[] = [
   { value: "g", label: "g" },
   { value: "kg", label: "kg" },
   { value: "ml", label: "ml" },
-  { value: "l", label: "l" },
+  { value: "l", label: "L" }, // capital: "20l" reads as "201"
   { value: "unit", label: "each" },
 ];
 const BASES: { value: PriceBasis | ""; label: string }[] = [

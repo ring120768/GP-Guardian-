@@ -81,7 +81,45 @@ describe("describeLine", () => {
           total_price: 8.2,
         })
       )
-    ).toBe("DOUBLE CREAM · 2l @ £4.10/litre = £8.20");
+    ).toBe("DOUBLE CREAM · 2L @ £4.10/litre = £8.20");
+  });
+
+  it("shows litres as a capital L, so 20L can't be misread as 201", () => {
+    expect(
+      describeLine(
+        line({
+          product_name_raw: "RAPESEED OIL",
+          qty_ordered: 1,
+          unit: "l",
+          unit_weight_min: 20,
+          unit_weight_max: 20,
+          unit_price: 32.5,
+          total_price: 32.5,
+        })
+      )
+    ).toBe("RAPESEED OIL · 1 × 20L @ £32.50/pack = £32.50");
+  });
+
+  it("count items with no weight read 'N each' — no '× ?'", () => {
+    const eggs = line({
+      product_name_raw: "FREE RANGE EGGS",
+      qty_ordered: -1,
+      pack_count: 180,
+      unit: "unit",
+      unit_price: 18.6,
+      total_price: -18.6,
+    });
+    expect(describeLine(eggs)).toBe("FREE RANGE EGGS · -1 × 180 each @ £18.60/pack = -£18.60");
+
+    const blueRoll = line({
+      product_name_raw: "BLUE ROLL",
+      qty_ordered: 1,
+      pack_count: 6,
+      unit: "unit",
+      unit_price: 14.99,
+      total_price: 14.99,
+    });
+    expect(describeLine(blueRoll)).toBe("BLUE ROLL · 1 × 6 each @ £14.99/pack = £14.99");
   });
 
   it("per unit", () => {
